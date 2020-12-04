@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.socket.io/socket.io-3.0.1.min.js"></script>
+  </head>
+  <body>
+    <script>
+      const socket = io('http://localhost:5001');
+      socket.on("connect", () => { console.log(socket.id); });
+    </script>
+  </body>
+</html>
