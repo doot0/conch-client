@@ -1,8 +1,12 @@
 'use strict';
 
 const SERVER_ENDPOINT = 'http://localhost:5001';
-
 const socket = io(SERVER_ENDPOINT);
+
+const getStyles = (type = 'msg') => {
+  const styleString = getComputedStyle(document.documentElement).getPropertyValue(`--conch-${type}`)
+  return styleString.slice(1, -1);
+}
 
 const ui = {
   connect: (location) => {
@@ -12,7 +16,9 @@ const ui = {
     console.info('Disconnected from server. Reason ->', reason)
   },
   message: (body) => {
-    console.log(`> ${body}`)
+    const nameStyle = getStyles('username')
+    const msgStyle = getStyles()
+    console.log(`%c${socket.id} %c${body}`, nameStyle, msgStyle)
   }
 }
 
@@ -31,7 +37,7 @@ socket.on("message", (message) => {
 
 const send = (message) => {
   socket.emit('message', {
-    body: message
+    body: `${message}`
   })
 }
 
