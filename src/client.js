@@ -11,27 +11,31 @@ const getStyles = (type = 'msg') => {
 
 const introChip = () => {
   if (!!document.querySelector(`.${CONCH_PREFIX}-logo`)) return;
-  
+
   const target = document.body;
   const chip = document.createElement('span');
   const icon = document.createElement('span');
-  
+
   chip.classList.add(`${CONCH_PREFIX}-logo`);
-  
+
   icon.innerText = '🐚';
   chip.setAttribute('style', STYLES.INTRO_CHIP);
   icon.setAttribute('style', STYLES.INTRO_ICON);
-  
+
   chip.appendChild(icon);
   target.appendChild(chip);
-  
+
   setTimeout(() => {
     chip.style.opacity = 0;
   }, 2000);
 }
 
 const assignName = (name) => {
-  
+  if (name) {
+    window.localStorage[`${CONCH_PREFIX}-name`] = name
+  } else {
+    return window.localStorage[`${CONCH_PREFIX}-name`];
+  }
 }
 
 const STYLES = {
@@ -50,16 +54,31 @@ const ui = {
     console.info('Disconnected from server. Reason ->', reason)
   },
   message: (body, prefix, infoStyle = `MSG_NAME`, messageStyle = `MSG_MSG`) => {
-    if (!prefix) prefix = socket.id;
+    if (!prefix) { prefix = assignName() ?? socket.id};
     console.log(`%c${prefix} %c${body}`, STYLES[infoStyle], STYLES[messageStyle])
   },
+  join: (body) => {
+    console.log(`${body} joined`)
+  }
 }
 
 socket.on("connect", () => {
   introChip();
   ui.connect(SERVER_ENDPOINT);
-  console.log(`UID: ${socket.id}`);
+
+  const name = assignName();
+  if (name !== undefined) {
+    ui.message(`Name: ${name}`)
+  } else {
+    ui.message(`UID: ${socket.id}`);
+  }
+
 });
+
+socket.on("join", (user) => {
+  console.log('joined', user)
+  ui.join(user.body)
+})
 
 socket.on("disconnect", (reason) => {
   ui.disconnect(reason)
