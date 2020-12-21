@@ -38,6 +38,17 @@ const assignName = (name) => {
   }
 }
 
+const uniqueId = () => {
+  const a = new Uint32Array(4);
+  window.crypto.getRandomValues(a);
+  return (
+    performance.now().toString(36)+Array.from(a).map(
+      A => A.toString(36)
+    ).join("")
+  ).replace(/\./g,"");
+}
+
+
 const STYLES = {
   INTRO_CHIP: getStyles('logo'),
   INTRO_ICON: getStyles('logo-icon'),
@@ -48,7 +59,7 @@ const STYLES = {
 
 const ui = {
   connect: (location) => {
-    console.log(`Connected to ${location}`);
+    // console.log(`Connected to ${location}`);
   },
   disconnect: (reason) => {
     console.info('Disconnected from server. Reason ->', reason)
@@ -57,9 +68,6 @@ const ui = {
     if (!prefix) { prefix = assignName() ?? socket.id};
     console.log(`%c${prefix} %c${body}`, STYLES[infoStyle], STYLES[messageStyle])
   },
-  join: (body) => {
-    console.log(`${body} joined`)
-  }
 }
 
 socket.on("connect", () => {
@@ -67,18 +75,10 @@ socket.on("connect", () => {
   ui.connect(SERVER_ENDPOINT);
 
   const name = assignName();
-  if (name !== undefined) {
-    ui.message(`Name: ${name}`)
-  } else {
-    ui.message(`UID: ${socket.id}`);
-  }
+  name !== undefined ? ui.message(`Name: ${name}`) : ui.message(`UID: ${socket.id}`)
 
 });
 
-socket.on("join", (user) => {
-  console.log('joined', user)
-  ui.join(user.body)
-})
 
 socket.on("disconnect", (reason) => {
   ui.disconnect(reason)
@@ -86,6 +86,10 @@ socket.on("disconnect", (reason) => {
 
 socket.on("message", (message) => {
   ui.message(message.body)
+})
+
+socket.on("join", (user) => {
+  ui.message(`${user}`, `JOIN:`, `MSG_INFO`);
 })
 
 socket.on("namechange", (name) => {
@@ -99,6 +103,8 @@ const send = (message) => {
 }
 
 const setName = (name) => {
+  if (!name) return;
+
   assignName(name);
   socket.emit('namechange', {
     body: name
