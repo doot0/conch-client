@@ -72,21 +72,19 @@ const ui = {
   connect: (location) => {
     connectedChip();
     ui.message(
-      `Conch is ready. (${location})`,
+      `Conch is ready. Commands are below. (${location})`,
       '🐚', "INTRO", ''
     );
-    ui.message(
-      'Conch.setName("yourName") sets your name.',
-      '🐚', 'INTRO', ''
+    let commands = [
+      { method: 'say', description: 'Send a message' },
+      { method: 'setName', description: 'Set your name' },
+      { method: 'getUsers', description: 'See who is online' } 
+    ]
+    
+    console.dir(
+      commands,
+      '🐚', "INTRO", ''
     );
-    ui.message(
-      'Conch.say("Your message") to send a message.',
-      '🐚', 'INTRO', ''
-    );
-    ui.message(
-      'Conch.getUsers() to see who is present.',
-      '🐚', 'INTRO', ''
-    )
   },
   disconnect: (reason) => {
     console.info('Disconnected from server. Reason ->', reason)
@@ -99,9 +97,19 @@ const ui = {
 
 // Connected to server
 socket.on("connect", () => {
+  
+  const { name, uid } = getUserProfile();
+  
+  socket.emit('ident', {
+    body: { name, uid }
+  });
+  
+  socket.emit('rolecall')
+  
   ui.connect(SERVER_ENDPOINT);
-  const {name} = assignName();
-  name !== undefined ? ui.message(`Name: ${name}`) : ui.message(`UID: ${socket.id}`)
+  
+  const username = assignName().name;
+  username !== undefined ? ui.message(`Name: ${username}`) : ui.message(`UID: ${socket.id}`)
 });
 
 // Disconnected from server
@@ -111,12 +119,12 @@ socket.on("disconnect", (reason) => {
 
 // Message from server
 socket.on("message", (message) => {
-  ui.message(message.body)
+  ui.message(`${message.body}`,`${message.user.name}`)
 })
 
 // User joined server
 socket.on("join", (user) => {
-  ui.message(`${user}`, `JOIN:`, `MSG_INFO`);
+  ui.message(`${user.name} joined`, `👋`);
 })
 
 // User changed name
@@ -131,14 +139,15 @@ socket.on("userlist", (users) => {
     'MSG_MSG'
   )
   users.forEach((user) => ui.message(
-    `${user.name}`,
+    `${user.name} - ${user.uid}`,
     user.online ? '🟢' : '🔴'
   ));
 })
 
 const send = (message) => {
   socket.emit('message', {
-    body: `${message}`
+    body: `${message}`,
+    user: getUserProfile()
   })
 }
 
