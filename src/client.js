@@ -9,7 +9,7 @@ const getStyles = (type = 'msg') => {
   return styleString.slice(1, -1);
 }
 
-const introChip = () => {
+const connectedChip = () => {
   if (!!document.querySelector(`.${CONCH_PREFIX}-logo`)) return;
 
   const target = document.body;
@@ -31,11 +31,22 @@ const introChip = () => {
 }
 
 const assignName = (name) => {
+  const uidSet = window.localStorage[`${CONCH_PREFIX}-uid`] !== undefined;
   if (name) {
     window.localStorage[`${CONCH_PREFIX}-name`] = name
+    if (!uidSet) window.localStorage[`${CONCH_PREFIX}-uid`] = uniqueId()
   } else {
-    return window.localStorage[`${CONCH_PREFIX}-name`];
+    return {
+      name: window.localStorage[`${CONCH_PREFIX}-name`],
+      uid: window.localStorage[`${CONCH_PREFIX}-uid`]
+    };
   }
+}
+
+const getUserProfile = () => {
+  const name = window.localStorage[`${CONCH_PREFIX}-name`];
+  const uid = window.localStorage[`${CONCH_PREFIX}-uid`];
+  return { name, uid }
 }
 
 const uniqueId = () => {
@@ -48,10 +59,10 @@ const uniqueId = () => {
   ).replace(/\./g,"");
 }
 
-
 const STYLES = {
   INTRO_CHIP: getStyles('logo'),
   INTRO_ICON: getStyles('logo-icon'),
+  INTRO: getStyles('intro'),
   MSG_NAME: getStyles('username'),
   MSG_INFO: getStyles('info-msg'),
   MSG_MSG: getStyles()
@@ -59,41 +70,70 @@ const STYLES = {
 
 const ui = {
   connect: (location) => {
-    // console.log(`Connected to ${location}`);
+    connectedChip();
+    ui.message(
+      `Conch is ready. (${location})`,
+      '🐚', "INTRO", ''
+    );
+    ui.message(
+      'Conch.setName("yourName") sets your name.',
+      '🐚', 'INTRO', ''
+    );
+    ui.message(
+      'Conch.say("Your message") to send a message.',
+      '🐚', 'INTRO', ''
+    );
+    ui.message(
+      'Conch.getUsers() to see who is present.',
+      '🐚', 'INTRO', ''
+    )
   },
   disconnect: (reason) => {
     console.info('Disconnected from server. Reason ->', reason)
   },
   message: (body, prefix, infoStyle = `MSG_NAME`, messageStyle = `MSG_MSG`) => {
-    if (!prefix) { prefix = assignName() ?? socket.id};
+    if (!prefix) { prefix = assignName().name ?? socket.id};
     console.log(`%c${prefix} %c${body}`, STYLES[infoStyle], STYLES[messageStyle])
   },
 }
 
+// Connected to server
 socket.on("connect", () => {
-  introChip();
   ui.connect(SERVER_ENDPOINT);
-
-  const name = assignName();
+  const {name} = assignName();
   name !== undefined ? ui.message(`Name: ${name}`) : ui.message(`UID: ${socket.id}`)
-
 });
 
-
+// Disconnected from server
 socket.on("disconnect", (reason) => {
   ui.disconnect(reason)
 })
 
+// Message from server
 socket.on("message", (message) => {
   ui.message(message.body)
 })
 
+// User joined server
 socket.on("join", (user) => {
   ui.message(`${user}`, `JOIN:`, `MSG_INFO`);
 })
 
-socket.on("namechange", (name) => {
-  ui.message(`${name.body}`, `NC:`, `MSG_INFO`);
+// User changed name
+socket.on("namechange", (userProfile) => {
+  ui.message(`${userProfile.body.name}`, `NC:`, `MSG_INFO`);
+})
+
+socket.on("userlist", (users) => {
+  ui.message(
+    'USERS LIST',
+    '🐚',
+    'MSG_MSG'
+  )
+  users.forEach((user) => ui.message(
+    `${user.name}`,
+    user.online ? '🟢' : '🔴'
+  ));
 })
 
 const send = (message) => {
@@ -102,16 +142,26 @@ const send = (message) => {
   })
 }
 
-const setName = (name) => {
-  if (!name) return;
-
-  assignName(name);
+const setName = (username) => {
+  if (!username) return;
+  assignName(username);
+  
+  const { name, uid } = getUserProfile();
+  
   socket.emit('namechange', {
-    body: name
+    body: {
+      name,
+      uid
+    }
   })
+}
+
+const getUsers = () => {
+  socket.emit('rolecall');
 }
 
 const Conch = {
   say: send,
-  setName
+  setName,
+  getUsers
 }
