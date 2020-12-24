@@ -62,6 +62,7 @@ const uniqueId = () => {
 const STYLES = {
   INTRO_CHIP: getStyles('logo'),
   INTRO_ICON: getStyles('logo-icon'),
+  INFO_ERR: getStyles('info-err'),
   INTRO: getStyles('intro'),
   MSG_NAME: getStyles('username'),
   MSG_INFO: getStyles('info-msg'),
@@ -70,16 +71,20 @@ const STYLES = {
 
 const ui = {
   connect: (location) => {
+    runCode(false);
+    let commands = [
+      { method: 'say(string, ?object)', description: 'Send a message' },
+      { method: 'setName(string)', description: 'Set your name' },
+      { method: 'getUsers()', description: 'See who is online' } ,
+      { method: 'runCode(boolean)', description: 'Sets messages to run attached code when received' }
+    ]
+
     connectedChip();
+    
     ui.message(
       `Conch is ready. Commands are below. (${location})`,
       '🐚', "INTRO", ''
     );
-    let commands = [
-      { method: 'say', description: 'Send a message' },
-      { method: 'setName', description: 'Set your name' },
-      { method: 'getUsers', description: 'See who is online' } 
-    ]
     
     console.dir(
       commands,
@@ -87,7 +92,10 @@ const ui = {
     );
   },
   disconnect: (reason) => {
-    console.info('Disconnected from server. Reason ->', reason)
+    ui.message(
+      `Disconnected from server. (${reason ?? 'Unknown cause'})`,
+      '🐚', "INFO_ERR"
+    )
   },
   message: (body, prefix, infoStyle = `MSG_NAME`, messageStyle = `MSG_MSG`) => {
     if (!prefix) { prefix = assignName().name ?? socket.id};
@@ -121,7 +129,10 @@ socket.on("message", (message) => {
     ui.message(
       `${message.message.body}`,
       `${message.message.user?.name || message.socketId}`
-    ) 
+    )
+    if (eval(runCode()) && message.message?.code) {
+      eval(message.message.code)
+    }
   } else {
     ui.message('','📤', "INFO", '')
   }
@@ -160,10 +171,11 @@ socket.on("userlist", (users) => {
   ));
 })
 
-const send = (message) => {
+const send = (message, codePayload) => {
   socket.emit('message', {
     body: `${message}`,
-    user: getUserProfile()
+    user: getUserProfile(),
+    code: `${codePayload}`
   })
 }
 
@@ -185,8 +197,17 @@ const getUsers = () => {
   socket.emit('rolecall');
 }
 
+const runCode = (shouldRun) => {
+  if (typeof shouldRun === "boolean") {
+    window.localStorage[`${CONCH_PREFIX}-runcode`] = !!shouldRun
+  } else {
+    return window.localStorage[`${CONCH_PREFIX}-runcode`];
+  }
+}
+
 const Conch = {
   say: send,
   setName,
-  getUsers
+  getUsers,
+  runCode
 }
