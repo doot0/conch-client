@@ -104,8 +104,6 @@ socket.on("connect", () => {
     body: { name, uid }
   });
   
-  socket.emit('rolecall')
-  
   ui.connect(SERVER_ENDPOINT);
   
   const username = assignName().name;
@@ -119,12 +117,30 @@ socket.on("disconnect", (reason) => {
 
 // Message from server
 socket.on("message", (message) => {
-  ui.message(`${message.body}`,`${message.user.name}`)
+  if (message.message.user?.uid !== getUserProfile().uid) {
+    ui.message(
+      `${message.message.body}`,
+      `${message.message.user?.name || message.socketId}`
+    ) 
+  } else {
+    ui.message('','📤', "INFO", '')
+  }
 })
 
 // User joined server
 socket.on("join", (user) => {
-  ui.message(`${user.name} joined`, `👋`);
+  if (user.uid !== getUserProfile().uid) {
+    const name = user?.name ?? `Anonymous`
+    ui.message(`${name} joined`, `👋`);
+  }
+})
+
+// User left
+socket.on("leave", (user) => {
+  if (user.uid !== getUserProfile().uid) {
+    const name = user.name ?? `Anonymous`
+    ui.message(`${name} left`, `👋`);
+  }
 })
 
 // User changed name
@@ -139,7 +155,7 @@ socket.on("userlist", (users) => {
     'MSG_MSG'
   )
   users.forEach((user) => ui.message(
-    `${user.name} - ${user.uid}`,
+    `${user.name ?? `Anonymous`}`,
     user.online ? '🟢' : '🔴'
   ));
 })
